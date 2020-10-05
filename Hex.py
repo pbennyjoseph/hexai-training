@@ -2,6 +2,14 @@
 # Importing required modules
 import numpy as np
 from disjoint_set import DisjointSet
+import os
+
+DEBUG = False
+
+
+def deb(msg, *args):
+    if DEBUG:
+        print(msg, *args)
 
 
 class Hex(object):
@@ -10,6 +18,7 @@ class Hex(object):
         self.size = 11
         self.turn_monitor = 1
         self.board = np.full((self.size, self.size), -1)
+        self.adder = lambda a, b: tuple(map(lambda a, b: a + b, a, b))
 
     def toss(self):
         """simulate a toss and decide which player goes first
@@ -17,7 +26,7 @@ class Hex(object):
         Args:
 
         Returns:
-        Returns 1 if player assigned mark 1 has won, or 0 if his opponent won
+        Returns 1 if player assigned mark 1 has won the toss, or 0 if his opponent won
 
         """
         turn = np.random.randint(0, 2, size=1)
@@ -35,7 +44,7 @@ class Hex(object):
         Returns: None
         """
 
-        return coords[0] in range(self.size) and coords[1] in range(self.size)
+        return coords[0] in range(0, self.size) and coords[1] in range(0, self.size)
 
     def hash(self, coords):
         """get hash of a cell
@@ -54,44 +63,61 @@ class Hex(object):
         Returns: None
         """
         assert isinstance(coords, tuple)
+        assert isinstance(player, int)
         hsh = self.hash(coords)
         if coords == (0, 0):
             if player:
                 self.dsu.union(hsh, 2)
+                deb("Connecting with 2")
             else:
                 self.dsu.union(hsh, 1)
+                deb("Connecting with 1")
         if coords == (0, self.size - 1):
             if player:
                 self.dsu.union(hsh, 2)
+                deb("Connecting with 2")
             else:
                 self.dsu.union(hsh, 4)
+                deb("Connecting with 4")
         if coords == (self.size - 1, 0):
             if player:
                 self.dsu.union(hsh, 3)
+                deb("Connecting with 3")
             else:
                 self.dsu.union(hsh, 1)
+                deb("Connecting with 1")
         if coords == (self.size - 1, self.size - 1):
             if player:
                 self.dsu.union(hsh, 3)
+                deb("Connecting with 3")
             else:
                 self.dsu.union(hsh, 4)
+                deb("Connecting with 4")
         if coords[1] == 0 and player == 0:
             self.dsu.union(hsh, 1)
+            deb("Connecting with 1")
         if coords[1] == self.size - 1 and player == 0:
             self.dsu.union(hsh, 4)
+            deb("Connecting with 4")
         if coords[0] == 0 and player == 1:
             self.dsu.union(hsh, 2)
+            deb("Connecting with 2")
         if coords[0] == self.size - 1 and player == 1:
             self.dsu.union(hsh, 3)
+            deb("Connecting with 3")
         for x in list(zip([-1, 0, 1, 0], [0, 1, 0, -1])):
             assert isinstance(x, tuple)
-            if self.valid(x) and self.board[x] == player:
+            deb("showing all ", x)
+            x = self.adder(x, coords)
+            if self.valid(x) and self.board[x] == self.board[coords]:
                 self.dsu.union(hsh, self.hash(x))
+                deb("Connecting with ", x)
 
-        for k in [1, -1]:
-            diag = tuple(map(lambda x: x + k, coords))
-            if self.valid(diag) and self.board[diag] == player:
+        for k in list(zip([-1, 1], [1, -1])):
+            diag = self.adder(k, coords)
+            if self.valid(diag) and self.board[diag] == self.board[coords]:
                 self.dsu.union(hsh, self.hash(diag))
+                deb("Connecting with ", diag)
 
     def move(self, player, coord):
         """perform the action of placing a mark on the tic tac toe board
@@ -116,8 +142,8 @@ class Hex(object):
                 self.turn_monitor != player
         ):
             raise ValueError("Invalid move")
-        self.connect(player, coord)
         self.board[coord] = player
+        self.connect(player, coord)
         self.turn_monitor = 1 - player
         return self.game_status(), self.board
 
@@ -139,7 +165,25 @@ class Hex(object):
         else:
             return "In Progress"
 
+    def display(self):
+        for row, i in enumerate(self.board):
+            print(" " * row, end="")
+            for j in i:
+                if j == -1:
+                    print(". ", end="")
+                else:
+                    print(j, end=" ")
+            print()
+
 
 """Test the game"""
 
-# TODO Prash
+
+def test():
+    g = Hex()
+    while g.game_status() == "In Progress":
+        print("to play: ", g.turn_monitor)
+        a, b = map(int, input().split())
+        os.system("clear")
+        g.move(g.turn_monitor, (a, b))
+        g.display()

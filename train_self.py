@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from Hex import Hex
 from scipy.ndimage.interpolation import shift
@@ -5,11 +7,11 @@ from scipy.ndimage.interpolation import shift
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import SGD
+from keras import models
 
 import pandas as pd
 
 from tqdm import tqdm
-import os
 
 """Create legal moves generator"""
 
@@ -41,27 +43,11 @@ def legal_moves_generator(current_board_state, turn_monitor):
 
 # TODO Prash
 
-"""Create Model params and initialize"""
-
-# TODO Prash
-model = Sequential()
-model.add(Dense(242, input_dim=121, kernel_initializer='normal', activation='relu'))
-model.add(Dropout(0.1))
-model.add(Dense(242, kernel_initializer='normal', activation='relu'))
-model.add(Dropout(0.1))
-model.add(Dense(1, kernel_initializer='normal'))
-
-learning_rate = 0.001
-momentum = 0.8
-
-sgd = SGD(lr=learning_rate, momentum=momentum, nesterov=False)
-model.compile(loss='mean_squared_error', optimizer=sgd)
-model.summary()
 
 """Create Move Selector"""
 
 
-def move_selector(model, current_board_state, turn_monitor):
+def move_selector(model, current_board_state, turn_monitor, game=None):
     """Function that selects the next move to make from a set of possible legal moves
 
     Args:
@@ -150,7 +136,7 @@ def train(model, print_progress=False):
     while 1:
         if game.game_status() == "In Progress" and game.turn_monitor == 1:
             # If its the program's turn, use the Move Selector function to select the next move
-            selected_move, new_board_state, score = move_selector(model, game.board, game.turn_monitor)
+            selected_move, new_board_state, score = move_selector(model, game.board, game.turn_monitor, game=game)
             scores_list.append(score[0][0])
             new_board_states_list.append(new_board_state)
             # Make the next move
@@ -161,7 +147,7 @@ def train(model, print_progress=False):
                 print("\n")
         elif game.game_status() == "In Progress" and game.turn_monitor == 0:
             # selected_move = opponent_move_selector(game.board, game.turn_monitor)
-            selected_move, new_board_state, score = move_selector(model, game.board, game.turn_monitor)
+            selected_move, new_board_state, score = move_selector(model, game.board, game.turn_monitor, game=game)
             # Make the next move
             game_status, board = game.move(game.turn_monitor, selected_move)
             if print_progress:
@@ -208,19 +194,40 @@ def train(model, print_progress=False):
 
 # updated_model,y,result=train(model,print_progress=False)
 
+
+"""Create Model params and initialize"""
+
+# TODO Prash
+
+if os.path.exists("my_model.h5"):
+    model = models.load_model('my_model.h5')
+else:
+    model = Sequential()
+    model.add(Dense(242, input_dim=121, kernel_initializer='normal', activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(242, kernel_initializer='normal', activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(1, kernel_initializer='normal'))
+
+    learning_rate = 0.001
+    momentum = 0.8
+
+    sgd = SGD(lr=learning_rate, momentum=momentum, nesterov=False)
+    model.compile(loss='mean_squared_error', optimizer=sgd)
+    model.summary()
+
 """Train with multiple games"""
 
 data_for_graph = pd.DataFrame()
-
-os.system("clear")
-print("Training")
-for i in tqdm(range(1, 10 ** 7)):
-    pass
+print("Training...")
 
 gamec = 0
-for game_counter in tqdm(range(1, 20000)):
+for game_counter in tqdm(range(1, 200)):
     model, y, result = train(model, print_progress=False)
     data_for_graph = data_for_graph.append({"game_counter": game_counter, "result": result}, ignore_index=True)
+    if game_counter % 100 == 0:
+        print("Saving new model...")
+        model.save('new_model.h5')
     gamec += 1
 
 """plot and save model"""
